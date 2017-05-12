@@ -1,7 +1,7 @@
 ---
 title: mypage
 date: 2017-05-11 17:35:13
-tags:
+tags: [spring cloud config]
 ---
 使用=和-标记一级和二级标题。
 
