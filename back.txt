@@ -1,0 +1,9 @@
+git init
+git add README.md
+git commit -m "first commit"
+git remote add origin https://github.com/zhengzehou/zhengzehou.github.io.git
+git push -u origin master
+
+hexo new "My New Post"
+hexo server
+hexo deploy
