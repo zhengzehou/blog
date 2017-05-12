@@ -69,4 +69,6 @@ theme: next
 # Deployment
 ## Docs: https://hexo.io/docs/deployment.html
 deploy:
-  type:
+  type: git
+  repo: https://github.com/zhengzehou/zhengzehou.github.io.git
+  message: 

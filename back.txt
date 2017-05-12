@@ -7,3 +7,8 @@ git push -u origin master
 hexo new "My New Post"
 hexo server
 hexo deploy
+
+git rm -r -n --cached  webpage/\*      //-n：加上这个参数，执行命令时，是不会删除任何文件，而是展示此命令要删除的文件列表预览。
+git rm -r --cached  webpage/\*      //最终执行命令.
+git commit -m"移除webpage目录下所有文件的版本控制"    //提交
+git push origin master   //提交到远程服务器
