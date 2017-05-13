@@ -3,7 +3,9 @@ title: Hexo部署和Markdown使用
 date: 2017-05-11 17:35:13
 tags: [Hexo,Markdown]
 ---
-# Hexo部署
+  Hexo部署和Markdown标记的使用介绍
+<!--more-->
+# Hexo
 ## [创建一个新页面](https://hexo.io/docs/writing.html)
 ``` bash
 $ hexo new "page"
@@ -16,7 +18,7 @@ $ hexo server
 ``` bash
 $ hexo generate
 ```
-<!--more-->
+
 ## [静态文件发布](https://hexo.io/docs/deployment.html)
 ``` bash
 $ hexo deploy

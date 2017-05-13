@@ -1,9 +1,12 @@
 ---
-title: SprigBean的创建顺序
+title: Spring Boot中Bean的创建和顺序初探
 date: 2017-05-13 12:36:29
 tags:
 ---
+
 # 在Spring boot中我们通过@Bean或者@Component或者@Service注解来创建Bean，那么创建的顺序是什么呢？
+<!--more-->
+
 ## Case1
   一个A类实现了某个接口，而另外一个类B又实现了该类A，同时还有一个类C，那么在A和B中都有@Bean C 和@Autowired C，  
   此时A和B不能同时用@Component注解，否则报错，代码如下,此时Controller 中使用TestInterface的对象是A，C 也是A中的@Bean创建的
