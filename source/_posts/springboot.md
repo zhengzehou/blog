@@ -3,7 +3,8 @@ title: 开启Spring Boot之旅
 date: 2017-05-11 17:35:13
 tags: [Spring,Boot]
 ---
-
+Spring Boot 逐渐成为开发主流，微架构的基础，让我们一起搭建一个简单的例子吧
+<!-- more -->
 # 环境准备
 
 - 一个称手的文本编辑器（例如Vim、Emacs、Sublime Text）或者IDE（Eclipse、Idea Intellij）  
