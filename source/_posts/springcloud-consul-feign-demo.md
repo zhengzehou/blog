@@ -530,7 +530,8 @@ spring:
           healthCheckInterval: 10s
           tags: dev  
 ```
-# 创建server工程，server工程里面的RestConstroller是下面要讲的feignclient的实现
+# 创建server工程
+## server工程里面的RestConstroller是下面要讲的feignclient的实现
 > server 工程定义如下包名
 >> com.ule.wholesale.server.conf #配置数据源，mybatis，属性文件的映射，已在springboot中描述过
 >> com.ule.wholesale.server.dto # vo对象的扩展
