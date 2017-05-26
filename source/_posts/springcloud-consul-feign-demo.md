@@ -615,4 +615,184 @@ public class SupplierServerController {
 	}
 }
 ```
-# REST接口封装 FeignClient 
+# Spring Cloud 声明式REST客户端Feign
+Feign是一个声明式的WebService客户端。使用Feign能让编写WebService客户端更加简单，它的使用方法是定义一个接口，然后在接口上添加注解，同时也支持JAX-RS标准的注解。SpringCloud对Feign进行了封装，使其支持SpringMVC标准注解和HttpMessageConverters。Feign可以与Consul、Eureka和Ribbon组合使用以支持负载均衡。
+## 依赖jar
+```
+        <dependency>
+            <groupId>org.springframework.cloud</groupId>
+            <artifactId>spring-cloud-starter-feign</artifactId>
+        </dependency>
+```
+## FeignClient的项目结构
+`com.ule.wholesale.fxpurchase.api.client`
+`com.ule.wholesale.fxpurchase.api.conf`
+`com.ule.wholesale.fxpurchase.api.constants`
+`com.ule.wholesale.fxpurchase.api.dto`
+## FeignClient的serviceClient的实现代码示例
+```
+package com.ule.wholesale.fxpurchase.api.client;
+
+import java.util.Map;
+import org.springframework.cloud.netflix.feign.FeignClient;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestMethod;
+import org.springframework.web.bind.annotation.RequestParam;
+import com.ule.wholesale.fxpurchase.common.util.ResultDTO;
+/**
+*ClientConstants.SERVICE_NAME 为server项目中指定的discovery下面的serviceName,一般保持和spring.application.name一致
+*ClientConstants.SERVER_PATH contextPath
+*/
+@FeignClient(value=ClientConstants.SERVICE_NAME,path=ClientConstants.SERVER_PATH)
+public interface OrderClientService {
+	
+	@RequestMapping("/api/order/fingdDetail/{orderId}")
+	public ResultDTO<Map<String,Object>> fingdOrderDetailByOrderId(@PathVariable("orderId")Long orderId);
+	@RequestMapping("/api/order/findOrderList")
+	public ResultDTO<Map<String,Object>> findOrderList(@RequestBody Map<String,Object> params);
+	@RequestMapping(value="/api/order/findPurchaseItemList",method=RequestMethod.POST)
+	public ResultDTO<PageInfo<FXPurchaseOrderGoodsDto>> findPurchaseItemList(@RequestBody Map<String,Object> params,@RequestParam("pageNum")Integer pageNum,@RequestParam("pageSize")Integer pageSize);
+}
+```
+## conf下配置了一个拦截器，用来传递head中的验证信息或者token信息
+```
+package com.ule.wholesale.fxpurchase.api.conf;
+
+import java.util.Enumeration;
+
+import javax.servlet.http.HttpServletRequest;
+
+import org.apache.commons.lang3.StringUtils;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+
+import com.ule.wholesale.fxpurchase.api.constants.ClientConstants;
+
+import feign.RequestInterceptor;
+import feign.RequestTemplate;
+
+@Configuration
+public class FeignClientsConfiguration {
+
+	@Autowired
+	HttpServletRequest request;
+	@Bean
+	public RequestInterceptor headerInterceptor() {
+		return new RequestInterceptor() {
+			@Override
+			public void apply(RequestTemplate requestTemplate) {
+                Enumeration<String> headerNames = request.getHeaderNames();
+				if (headerNames != null) {
+                    //此处可以对当前request中信息进行修改，或者传递到server的request，也可以不要
+					while (headerNames.hasMoreElements()) {
+						String name = headerNames.nextElement();
+						Enumeration<String> values = request.getHeaders(name);
+						while (values.hasMoreElements()) {
+							requestTemplate.header(name, values.nextElement());
+						}
+					}
+				}	
+                for(String key : ClientConstants.headMap.keySet()){
+                    if(ClientConstants.headMap.get(key) != null && StringUtils.isNotBlank(ClientConstants.headMap.get(key).toString()))
+                        requestTemplate.header(key, ClientConstants.headMap.get(key).toString());
+                }
+			}
+		};
+	}
+}
+```
+## 在调用者入口类上添加@EnableFeignClients注解
+```
+@SpringBootApplication
+@EnableDiscoveryClient
+@EnableFeignClients("com.ule.wholesale.fxpurchase.api.*")
+@PropertySource("classpath:dbaccount.yml")
+@ComponentScan({"com.ule.wholesale.fxpurchase"})
+public class FxServerApplication extends SpringBootServletInitializer{
+	
+	protected SpringApplicationBuilder configure(SpringApplicationBuilder builder) {
+		
+        return builder.sources(FxServerApplication.class);
+	}
+	public static void main(String[] args) {
+        SpringApplication.run(FxServerApplication.class, args);
+    }
+	
+	
+}
+```
+# web应用通过Feign调用服务
+##  依赖feignClient封装的jar
+##  添加consul配置（如果使用eureka作为服务注册中心的配置eureka）
+```
+spring:
+    consul:
+        host: localhost
+        port: 8500
+        discovery:
+          register: false
+```
+##  feign配置
+```
+endpoints:
+  shutdown:
+    enabled: true
+    sensitive: true
+  restart:
+    enabled: true
+  health:
+    sensitive: false
+#Spring Cloud中，如何解决Feign/Ribbon第一次请求失败的问题
+#该配置是让Hystrix的超时时间改为5秒
+hystrix:
+  command:
+    default: 
+      execution: 
+        isolation:
+          thread.timeoutInMilliseconds: 5000
+          strategy: SEMAPHORE
+#禁用feign的hystrix
+#feign.hystrix.enabled=false
+feign:
+   httpclient:
+     enabled: true
+   compression: 
+   #请求和响应GZIP压缩支持
+     request.enabled: true
+     response.enabled: true
+  #支持压缩的mime types
+     request.mime-types: text/xml,application/xml,application/json
+     request.min-request-size: 2048
+```
+##  feign重试次数和超时时间设置
+```
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.annotation.Bean;
+import org.springframework.stereotype.Component;
+
+import feign.Request;
+import feign.Retryer;
+
+@Component
+public class InitBean {
+	
+	@Value("${feignConnectTimeout:10000}")
+	private Integer connectTimeoutMillis;
+	@Value("${feignReadTimeout:60000}")
+	private Integer readTimeoutMillis;
+	
+	// feign client默认的connectTimeout为10s，readTimeout为60.单纯设置timeout，可能没法立马见效，因为默认的retry为5次    
+	@Bean
+    Request.Options feignOptions() {
+        return new Request.Options(/**connectTimeoutMillis**/connectTimeoutMillis, /** readTimeoutMillis **/readTimeoutMillis);
+    }
+	@Bean
+    Retryer feignRetryer() {
+        return Retryer.NEVER_RETRY;
+    }
+	
+}
+```
