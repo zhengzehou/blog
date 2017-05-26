@@ -136,14 +136,12 @@ mybatis:
     typeAliasesPackage: com.ule.wholesale.fxpurchase.server.vo
     mapperLocations: classpath:com/ule/wholesale/fxpurchase/mapper/*.xml
     configLocation: classpath:/mybatis-config.xml
-endpoints:
-  shutdown:
-    enabled: true
-    sensitive: true
-  restart:
-    enabled: true
-  health:
-    sensitive: false
+
+logging:
+  level:
+   org.springframework: debug
+   com.ule.wholesale.fxpurchase: debug
+  
 
 ```
 5. 引入其他配置文件的属性
@@ -191,80 +189,22 @@ header:
     @ConfigurationProperties(prefix="properties")
     public class PropertiesConfiguration implements EnvironmentAware {
         
-    //	private static Logger logger = LoggerFactory.getLogger(PropertiesConfiguration.class);
         @Value("${clientName}")
         private String tmpclientName;
         @Value("${clientKey}")
         private String tmpclientKey;
-        @Value("${uploadTempDir}")
-        private String tmpuploadTempDir;
-        @Value("${uploadFileToDFSUrl}")
-        private String tmpuploadFileToDFSUrl;
-        @Value("${uploadFileUrl}")
-        private String tmpuploadFileUrl;
-        @Value("${globalStaticServer1}")
-        private String tmpglobalStaticServer1;
-        @Value("${globalStaticServer2}")
-        private String tmpglobalStaticServer2;
-        @Value("${globalStaticServer3}")
-        private String tmpglobalStaticServer3;
-        @Value("${searchDistrIpPort}")
-        private String tmpsearchDistrIpPort;
-        @Value("${itemAppkey}")
-        private String tmpitemAppkey;
-        @Value("${merchantWarehouse}")
-        private String tmpmerchantWarehouse;
-        @Value("${itemsStorage}")
-        private String tmpitemsStorage;
-        @Value("${warehouseInfo}")
-        private String tmpwarehouseInfo;
-        @Value("${cancelPurchaseOrder}")
-        private String tmpcancelPurchaseOrder;
-        @Value("${cancelReturnOrder}")
-        private String tmpcancelReturnOrder;
-        @Value("${uleSelfSupport}")
-        private String tmpuleSelfSupport;
-        @Value("${betaTestMerchant}")
-        private String tmpbetaTestMerchant;
+        ...
         
         public static String clientName;
         public static String clientKey;
-        public static String uploadTempDir;
-        public static String uploadFileToDFSUrl;
-        public static String uploadFileUrl;
-        public static String globalStaticServer1;
-        public static String globalStaticServer2;
-        public static String globalStaticServer3;
-        public static String searchDistrIpPort;
-        public static String itemAppkey;
-        public static String merchantWarehouse;
-        public static String itemsStorage;
-        public static String warehouseInfo;
-        public static String cancelPurchaseOrder;
-        public static String cancelReturnOrder;
-        public static String uleSelfSupport;
-        public static String betaTestMerchant;
+        ...
         
         
         @Override
         public void setEnvironment(Environment arg0) {
             PropertiesConfiguration.clientName = tmpclientName;
             PropertiesConfiguration.clientKey = tmpclientKey;
-            PropertiesConfiguration.uploadTempDir = tmpuploadTempDir;
-            PropertiesConfiguration.uploadFileToDFSUrl = tmpuploadFileToDFSUrl;
-            PropertiesConfiguration.uploadFileUrl = tmpuploadFileUrl;
-            PropertiesConfiguration.globalStaticServer1 = tmpglobalStaticServer1;
-            PropertiesConfiguration.globalStaticServer2 = tmpglobalStaticServer2;
-            PropertiesConfiguration.globalStaticServer3 = tmpglobalStaticServer3;
-            PropertiesConfiguration.searchDistrIpPort = tmpsearchDistrIpPort;
-            PropertiesConfiguration.itemAppkey = tmpitemAppkey;
-            PropertiesConfiguration.merchantWarehouse = tmpmerchantWarehouse;
-            PropertiesConfiguration.itemsStorage = tmpitemsStorage;
-            PropertiesConfiguration.warehouseInfo = tmpwarehouseInfo;
-            PropertiesConfiguration.cancelPurchaseOrder = tmpcancelPurchaseOrder;
-            PropertiesConfiguration.cancelReturnOrder = tmpcancelReturnOrder;
-            PropertiesConfiguration.uleSelfSupport = tmpuleSelfSupport;
-            PropertiesConfiguration.betaTestMerchant = tmpbetaTestMerchant;
+            ...
         }	
     }
 ```
@@ -529,6 +469,14 @@ spring:
           #默认值是10s
           healthCheckInterval: 10s
           tags: dev  
+endpoints:
+  shutdown:
+    enabled: true
+    sensitive: true
+  restart:
+    enabled: true
+  health:
+    sensitive: false
 ```
 # 创建server工程
 ## server工程里面的RestConstroller是下面要讲的feignclient的实现
@@ -633,3 +581,38 @@ public class MyInitializingBean implements InitializingBean {
 }
 
 ```
+> 6. restcontroller rest接口实现，该包封装了所有的接口的实现，可以同feigclient封装为jar，也可以直接通过http调用
+>> 示例代码如下
+```
+@RestController
+@RequestMapping("/api/supplier")
+@Api(value = "供应商接口服务类",tags = "供应商服务接口")  
+public class SupplierServerController {
+
+	private static Logger logger = LoggerFactory.getLogger(SupplierServerController.class);
+	
+	@Autowired
+	private FXSupplierInfoService supplierInfoService;
+	
+	@RequestMapping(value = "/getSupplierListByPage",method=RequestMethod.POST)
+	@ApiOperation("分页获取供应商列表")
+	public ResultDTO<Map<String,Object>> getSupplierListByPage(
+			@ApiParam(name="fxSupplierInfo",value="供应商对象",required=true)@RequestBody FXSupplierInfo fxSupplierInfo,
+			@ApiParam(name="pageNum",value="页码",required=true)Integer pageNum,
+			@ApiParam(name="pageSize",value="每页数量",required=true)Integer pageSize,String orderBy){
+		logger.info("SupplierInfoController >>> getSupplierListByPage");
+		ResultDTO<Map<String,Object>> rstDto = new ResultDTO<Map<String,Object>>();
+		Map<String,Object> rstMap = new HashMap<String, Object>(); 
+		PageInfo<FXSupplierInfo> pageInfo = supplierInfoService.getSupplierListByPage(fxSupplierInfo, pageNum, pageSize);
+		rstMap.put("currentPage", pageInfo.getPageNum());
+		rstMap.put("totalPage", pageInfo.getPages());
+		rstMap.put("total", pageInfo.getTotal());
+		rstMap.put("supplierList", pageInfo.getList());
+		rstDto.setData(rstMap);
+		rstDto.setCode("0");
+		rstDto.setMsg("");
+		return rstDto;
+	}
+}
+```
+# REST接口封装 FeignClient 
