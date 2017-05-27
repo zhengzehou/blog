@@ -616,7 +616,8 @@ public class SupplierServerController {
 }
 ```
 # Spring Cloud 声明式REST客户端Feign
-Feign是一个声明式的WebService客户端。使用Feign能让编写WebService客户端更加简单，它的使用方法是定义一个接口，然后在接口上添加注解，同时也支持JAX-RS标准的注解。SpringCloud对Feign进行了封装，使其支持SpringMVC标准注解和HttpMessageConverters。Feign可以与Consul、Eureka和Ribbon组合使用以支持负载均衡。
+Feign是一个声明式的WebService客户端。使用Feign能让编写WebService客户端更加简单，它的使用方法是定义一个接口，然后在接口上添加注解，同时也支持JAX-RS标准的注解。SpringCloud对Feign进行了封装，使其支持SpringMVC标准注解和HttpMessageConverters。Feign可以与Consul、Eureka和Ribbon组合使用以支持负载均衡。  
+FeignClient注解申明创建一个rest client Bean，可以直接通过Autowired注入使用，如果ribbon工程中启用，则会使用load balance进行后端请求调用，可以为FeignClient指定value表明要访问的serviceId
 ## 依赖jar
 ```
         <dependency>
@@ -705,6 +706,7 @@ public class FeignClientsConfiguration {
 }
 ```
 ## 在调用者入口类上添加@EnableFeignClients注解
+注解EnableFeignClients表明需要扫描使用FeignClient注解的接口，在代码中定义了@FeignClient表明该接口为一个feign接口通过ServiceId指定访问路径、RequestMapping表明相对路径
 ```
 @SpringBootApplication
 @EnableDiscoveryClient
@@ -724,6 +726,30 @@ public class FxServerApplication extends SpringBootServletInitializer{
 	
 }
 ```
+## Feign构造多参数的请求
+```
+    @RequestMapping(value = "/hello/{name}",method = RequestMethod.GET)
+    public  ResultDTO<T> hello(@PathVariable("name") String name);
+
+    @RequestMapping(value = "/params",method = RequestMethod.POST)
+	public ResultDTO<T> testParam(@RequestParam("name")String name,@RequestParam("age")Integer age,@RequestParam("birthday")Date birthday);
+
+    @RequestMapping(value = "/api/paramList",method = RequestMethod.POST,consumes = "application/json")
+	public ResultDTO<T> testParamList(@RequestParam("name")String name,@RequestBody List<Integer> ages);
+
+    @RequestMapping(value="/dto",method = RequestMethod.POST,consumes = "application/json")
+	public ResultDTO<T> testDto(@RequestBody TestParamDto dto);
+
+    @RequestMapping(value = "/list",method = RequestMethod.POST,consumes = "application/json")
+	public ResultDTO<T> testList(@RequestBody List<TestParamDto> dtoList);
+	
+	@RequestMapping(value="/map",method = RequestMethod.POST, consumes = "application/json")
+	public ResultDTO<T> testMap(@RequestBody Map<String,Object> params);
+
+    @RequestMapping(value="/api/order/findPurchaseItemList",method=RequestMethod.POST)
+	public ResultDTO<T> findPurchaseItemList(@RequestBody Map<String,Object> params,@RequestParam("pageNum")Integer pageNum,@RequestParam("pageSize")Integer pageSize);
+```
+
 # web应用通过Feign调用服务
 ##  依赖feignClient封装的jar
 ##  添加consul配置（如果使用eureka作为服务注册中心的配置eureka）
@@ -735,7 +761,7 @@ spring:
         discovery:
           register: false
 ```
-##  feign配置
+##  feign配置   [Ribbon的负载均衡策略](http://blog.csdn.net/rickiyeat/article/details/64918756) 
 ```
 endpoints:
   shutdown:
@@ -745,6 +771,10 @@ endpoints:
     enabled: true
   health:
     sensitive: false
+# Ribbon的负载均衡策略,默认就是随机的，不需要配置
+{serviceName}:
+  ribbon:
+    NFLoadBalancerRuleClassName: com.netflix.loadbalancer.RandomRule 
 #Spring Cloud中，如何解决Feign/Ribbon第一次请求失败的问题
 #该配置是让Hystrix的超时时间改为5秒
 hystrix:
@@ -796,3 +826,60 @@ public class InitBean {
 	
 }
 ```
+# 使用sleuth和zipkin
+随着微服务数量不断增长，需要跟踪一个请求从一个微服务到下一个微服务的传播过程， Spring Cloud Sleuth 正是解决这个问题，它在日志中引入唯一ID，以保证微服务调用之间的一致性，这样你就能跟踪某个请求是如何从一个微服务传递到下一个。
+## 引入配置
+```
+spring:
+  zipkin:
+      enabled: true
+      base-url: http://192.168.175.129:9411
+```
+## 依赖jar
+```
+        <dependency>
+			<groupId>org.springframework.cloud</groupId>
+			<artifactId>spring-cloud-starter-sleuth</artifactId>
+		</dependency>
+		<dependency>
+			<groupId>org.springframework.cloud</groupId>
+			<artifactId>spring-cloud-starter-zipkin</artifactId>
+		</dependency>
+```
+## 日志写入到zipkin配置
+```
+    //该配置是把日志写到zipkin
+	@Bean
+    public AlwaysSampler defaultSampler(){
+        return new AlwaysSampler();
+    }
+```
+## 访问请求时会打印相关日志
+#### 先介绍几个相关术语：
+Spring Cloud Sleuth自动装配所有Spring应用，因此你不用做任何事来让他工作
+1. Span：基本工作单元，span通过一个64位ID唯一标识，trace以另一个64位ID表示，span还有其他数据信息，比如摘要、时间戳事件、关键值注释(tags)、span的ID、以及进度ID(通常是IP地址)
+![span内容信息](/images/span.png)
+2. Trace：一系列spans组成的一个树状结构
+![trace内容信息](/images/trace.png)
+3. Annotation：用来及时记录一个事件的存在，一些核心annotations用来定义一个请求的开始和结束
+4. 可以通过Kibana等图形界面工具进行日志查看，可以看到事件的发生信息，Kibana的使用需要做相关配置。
+#### 日志内容分析
+##### 日志打印过程及顺序
+cs - Client Sent -客户端发起一个请求，这个annotion描述了这个span的开始
+sr - Server Received -服务端获得请求并准备开始处理它，如果将其sr减去cs时间戳便可得到网络延迟
+ss - Server Sent -注解表明请求处理的完成(当请求返回客户端)，如果ss减去sr时间戳便可得到服务端需要的处理请求时间
+cr - Client Received -表明span的结束，客户端成功接收到服务端的回复，如果cr减去cs时间戳便可得到客户端从服务端获取回复的所有所需时间
+> 服务的依赖和执行过程
+![服务的依赖和执行过程](/images/dependencies.png)
+[appname,traceId,spanId,exportable]
+[`service1`,2485ec27856c56f4,2485ec27856c56f4,true] 
+[`service2`,2485ec27856c56f4,9aa10ee6fbde75fa,true]
+[`service3`,2485ec27856c56f4,1210be13194bfe5,true] 
+[`service2`,2485ec27856c56f4,9aa10ee6fbde75fa,true]
+[`service4`,2485ec27856c56f4,1b1845262ffba49d,true] 
+[`service2`,2485ec27856c56f4,9aa10ee6fbde75fa,true] 
+[`service1`,2485ec27856c56f4,2485ec27856c56f4,true] 
+> - 第一个参数appname,应用名
+> - 第二个参数traceId，同一次调用traceId相同
+> - 第三个参数spanId，同一次调用不同服务的spanId不同
+> - 第四个参数表示是否写入到了zipki，TRUE为写入，FALSE未写入
