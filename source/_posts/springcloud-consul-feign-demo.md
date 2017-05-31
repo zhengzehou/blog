@@ -873,3 +873,4 @@ cr - Client Received -表明span的结束，客户端成功接收到服务端的
 > - 第二个参数traceId，同一次调用traceId相同
 > - 第三个参数spanId，同一次调用不同服务的spanId不同
 > - 第四个参数表示是否写入到了zipki，TRUE为写入，FALSE未写入
+5. 如果日志中要显示服务名需要在bootstrap.yml文件中进行配置spring.application.name=serverName，默认显示的是bootstrap
