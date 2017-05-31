@@ -146,11 +146,6 @@ logging:
 ```
 5. 引入其他配置文件的属性
 ```
-jdbc:
-  dbusername: uleapp_uwds_self
-  dbpassword: ule.123
-  dburl: jdbc:mysql://172.25.201.63:3306/ule_uwds_selfsupport?useUnicode=true&characterEncoding=utf-8
-
 properties:
   clientName: fxRuralOpcMerchant
   clientKey: B7C8BA415C580E9A3D84F835AD27FE94
@@ -218,11 +213,10 @@ import java.sql.SQLException;
 
 import javax.sql.DataSource;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Value;
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.bind.RelaxedPropertyResolver;
-import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.context.EnvironmentAware;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -234,19 +228,12 @@ import com.alibaba.druid.pool.DruidDataSource;
 
 @Configuration  
 @EnableTransactionManagement 
-@ConfigurationProperties(prefix="jdbc")
 public class DataBaseConfiguration implements EnvironmentAware {
 
+	private static Log log = LogFactory.getLog(DataBaseConfiguration.class);
 	private RelaxedPropertyResolver propertyResolver;  
-	@Value("${dbusername}")
-	private String username;
-	@Value("${dbpassword}")
-	private String password;
-	@Value("${dburl}")
-	private String url;
-
-	private static Logger log = LoggerFactory.getLogger(DataBaseConfiguration.class);
-    
+    @Autowired
+	JDBCConfiguration jdbc;
 	@Override
 	public void setEnvironment(Environment env) {
 		this.propertyResolver = new RelaxedPropertyResolver(env, "spring.datasource.");
@@ -258,19 +245,21 @@ public class DataBaseConfiguration implements EnvironmentAware {
         log.debug("Configruing Write druid DataSource");  
           
         DruidDataSource dataSource = new DruidDataSource();  
-        dataSource.setUrl(url); 
-        //dataSource.setUsername(propertyResolver.getProperty("username"));//用户名  
-        dataSource.setUsername(username);//用户名  
-//        dataSource.setPassword(propertyResolver.getProperty("password"));//密码  
-        dataSource.setPassword(password);//密码  
+        log.info("jdbc.getUsername()="+jdbc.getUsername());
+        log.info("jdbc.getUrl()="+jdbc.getUrl());
+        log.info("jdbc.getPassword()="+jdbc.getPassword());
+        log.info("driver-class-name="+propertyResolver.getProperty("driver-class-name"));
+        dataSource.setUrl(jdbc.getUrl()); 
+        dataSource.setUsername(jdbc.getUsername());//用户名  
+        dataSource.setPassword(jdbc.getPassword());//密码  
         dataSource.setDriverClassName(propertyResolver.getProperty("driver-class-name"));  
-        dataSource.setInitialSize(Integer.parseInt(propertyResolver.getProperty("initialSize")));  
-        dataSource.setMaxActive(Integer.parseInt(propertyResolver.getProperty("maxActive")));  
-        dataSource.setMinIdle(Integer.parseInt(propertyResolver.getProperty("minIdle")));  
-        dataSource.setMaxWait(Integer.parseInt(propertyResolver.getProperty("maxWait")));  
+        dataSource.setInitialSize(jdbc.getInitialSize());  
+        dataSource.setMaxActive(jdbc.getMaxActive());  
+        dataSource.setMinIdle(jdbc.getMinIdle());  
+        dataSource.setMaxWait(jdbc.getMaxWait());  
         dataSource.setTimeBetweenEvictionRunsMillis(Integer.parseInt(propertyResolver.getProperty("timeBetweenEvictionRunsMillis")));  
         dataSource.setMinEvictableIdleTimeMillis(Integer.parseInt(propertyResolver.getProperty("minEvictableIdleTimeMillis")));  
-        dataSource.setValidationQuery(propertyResolver.getProperty("validationQuery"));  
+        dataSource.setValidationQuery(jdbc.getValidationQuery());  
         dataSource.setTestOnBorrow(Boolean.getBoolean(propertyResolver.getProperty("testOnBorrow")));  
         dataSource.setTestWhileIdle(Boolean.getBoolean(propertyResolver.getProperty("testWhileIdle")));  
         dataSource.setTestOnReturn(Boolean.getBoolean(propertyResolver.getProperty("testOnReturn")));  
@@ -284,7 +273,8 @@ public class DataBaseConfiguration implements EnvironmentAware {
 		} 
           
         return dataSource;  
-    } 	
+    } 
+	
 }
 
 ```
