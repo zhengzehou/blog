@@ -448,6 +448,7 @@ spring:
       #port，healthCheckPath 针对本地测试使用，beta、prd均通过域名使用，端口处理为80
       #通过 tags=dev来判断是否为本地测试
       #本地测试时 healthCheckUrl、ipAddress配置无效(ipAddress为空会自动回去本机IP)，tags不等于dev或者不配置时port、healthCheckPath无效
+      #以上配置均在ConsulInitializingBean 中實現
         host: 127.0.0.1:8500
         #port: 8500
         enabled: true
