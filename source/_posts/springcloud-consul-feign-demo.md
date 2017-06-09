@@ -1,7 +1,7 @@
 ---
 title: '通過spring cloud實現服務發現和rest接口調用'
 date: 2017-05-25 18:24:49
-tags:['srping cloud','consul','feign']
+tags:[srpingcloud consul feign]
 ---
   本篇内容主要介绍了spring cloud 的使用中用到的一些技术和对应的实现，包括spring boot项目搭建，consul的配置，server服务的结构和结构的具体内容，feignclient的创建和调用。
   <!-- more -->
