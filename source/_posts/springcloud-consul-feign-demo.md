@@ -444,21 +444,24 @@ public class MybatisConfiguration implements EnvironmentAware,TransactionManagem
 spring:
     cloud:
       consul:
-      #172.25.200.86
-      #consul.beta.uletm.com:80
-        host: 127.0.0.1
-        port: 8500
+      #instanceId默认诶服务名+端口（集群时id会重复）， 已经在Java中做了配置，值为spring.application.name-ip-port格式
+      #port，healthCheckPath 针对本地测试使用，beta、prd均通过域名使用，端口处理为80
+      #通过 tags=dev来判断是否为本地测试
+      #本地测试时 healthCheckUrl、ipAddress配置无效(ipAddress为空会自动回去本机IP)，tags不等于dev或者不配置时port、healthCheckPath无效
+        host: 127.0.0.1:8500
+        #port: 8500
         enabled: true
         discovery:
           enabled: true
-          instanceId: ${spring.application.name}:${spring.application.instance_id:${random.value}}
+          #instanceId: ${spring.application.name}:${spring.application.instance_id:${random.value}}
           serviceName: ${spring.application.name}
-          #port: ${server.port}
+          ipAddress: ${server-host}
+          port: ${server.port}
           preferIpAddress: true
           healthCheckPath: ${server.context-path}/health
-          #默认值是10s
-          healthCheckInterval: 10s
-          tags: dev  
+          healthCheckUrl: http://${server-host}${server.context-path}/health
+          #healthCheckInterval: 10s 
+          tags: dev            
 endpoints:
   shutdown:
     enabled: true
@@ -528,9 +531,9 @@ public class Swagger2 {
     private ApiInfo apiInfo() {
         return new ApiInfoBuilder()
                 .title("Spring Boot中使用Swagger2构建RESTful APIs")
-                //.description("更多Spring Cloud相关文章请关注更新内容")
-                //.termsOfServiceUrl("https://zhengzehou.github.io")
-                //.contact("郑明志")
+                .description("更多Spring Cloud相关文章请关注更新内容")
+                .termsOfServiceUrl("https://zhengzehou.github.io")
+                .contact("郑明志")
                 .version("1.0")
                 .build();
     }
@@ -550,11 +553,15 @@ import org.springframework.beans.factory.InitializingBean;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cloud.consul.discovery.ConsulDiscoveryProperties;
 import org.springframework.stereotype.Component;
-
+/**
+ * 自定义初始化Consul
+ * @author zhengmingzhi
+ *
+ */
 @Component
-public class MyInitializingBean implements InitializingBean {
+public class ConsulInitializingBean implements InitializingBean {
 
-	private static Logger logger = LoggerFactory.getLogger(MyInitializingBean.class);
+	private static Logger logger = LoggerFactory.getLogger(ConsulInitializingBean.class);
 	@Autowired
 	ConsulDiscoveryProperties properties;
 	@Override
@@ -564,8 +571,18 @@ public class MyInitializingBean implements InitializingBean {
 			properties.setPort(Integer.valueOf(port));
 		}
 		logger.info("修改consul中instanceId的值，使用服务名+IP+端口,确保同一个服务在注册中心只有一条记录");
+        //如果是本地测试使用本地IP和HealthCheckPath，非本地环境使用域名和80端口，通过tag=dev来判断
+		if(properties.getTags().contains("dev")){
+			properties.setHealthCheckUrl(null);
+			properties.setIpAddress(getIpAddressAsInt());
+		}else{
+			properties.setHealthCheckPath(null);
+			properties.setPort(80);
+		}
 		logger.info("start service serverPort="+properties.getPort());
-		properties.setInstanceId(properties.getServiceName()+"-"+properties.getIpAddress()+"-"+properties.getPort());
+        // InstanceId默认为applicationName+端口，使用applicationName+ip + 端口，防止集群时默认名字重复
+		if(StringUtils.isBlank(properties.getInstanceId()))
+			properties.setInstanceId(properties.getServiceName()+"-"+properties.getIpAddress()+"-"+properties.getPort());
 	}
 
 }
@@ -817,7 +834,7 @@ public class InitBean {
 }
 ```
 # 使用sleuth和zipkin
-随着微服务数量不断增长，需要跟踪一个请求从一个微服务到下一个微服务的传播过程， Spring Cloud Sleuth 正是解决这个问题，它在日志中引入唯一ID，以保证微服务调用之间的一致性，这样你就能跟踪某个请求是如何从一个微服务传递到下一个。
+随着微服务数量不断增长，需要跟踪一个请求从一个微服务到下一个微服务的传播过程， Spring Cloud Sleuth 正是解决这个问题，它在日志中引入唯一ID，以保证微服务调用之间的一致性，这样你就能跟踪某个请求是如何从一个微服务传递到下一个。啟動服務`nohum java -jar zipkin.jar & `
 ## 引入配置
 ```
 spring:
