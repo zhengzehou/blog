@@ -38,7 +38,7 @@ tags: ['srping cloud','consul','feign']
 @SpringBootApplication
 //引入其他配置文件
 @PropertySource("classpath:dbaccount.yml")
-@ComponentScan({"com.ule.wholesale.fxpurchase"})
+@ComponentScan({"com.cloud.test..app"})
 public class FxServerApplication {
 
 	public static void main(String[] args) {
@@ -51,7 +51,7 @@ public class FxServerApplication {
 ```
 @SpringBootApplication
 @PropertySource("classpath:dbaccount.yml")
-@ComponentScan({"com.ule.wholesale.fxpurchase"})
+@ComponentScan({"com.cloud.test..app"})
 public class FxServerApplication extends SpringBootServletInitializer{
 	protected SpringApplicationBuilder configure(SpringApplicationBuilder builder){
         //builder.sources一定要指向springboot的主函数类
@@ -66,7 +66,7 @@ public class FxServerApplication extends SpringBootServletInitializer{
 ```
 server:
    port: 8801
-   context-path: /fxPurchase
+   context-path: /.app
    error:
         path: /500.html
    session-timeout: 30
@@ -82,7 +82,7 @@ spring:
       date-format: yyyy-MM-dd HH:mm:ss
       time-zone: GMT+8
     application:
-      name: FXPURCHASE-SERVICE1
+      name: .app-SERVICE1
 
     redis: 
       database: 0
@@ -96,8 +96,8 @@ spring:
       timeout: 0
     datasource:
         name: postmall
-        #url: jdbc:oracle:thin:@//172.24.144.126:1521/postmall
-        #url: jdbc:mysql://172.25.201.63:3306/ule_uwds_selfsupport?useUnicode=true&characterEncoding=utf-8  
+        #url: jdbc:oracle:thin:@//*****:1521/postmall
+        #url: jdbc:mysql://****:3306/ule_uwds_selfsupport?useUnicode=true&characterEncoding=utf-8  
         #username: uleapp_uwds_self
         #password: ule.123
         # 使用druid数据源
@@ -133,37 +133,23 @@ spring:
    
 # MyBatis  
 mybatis:  
-    typeAliasesPackage: com.ule.wholesale.fxpurchase.server.vo
-    mapperLocations: classpath:com/ule/wholesale/fxpurchase/mapper/*.xml
+    typeAliasesPackage: com.cloud.test..app.server.vo
+    mapperLocations: classpath:com/ule/test/.app/mapper/*.xml
     configLocation: classpath:/mybatis-config.xml
 
 logging:
   level:
    org.springframework: debug
-   com.ule.wholesale.fxpurchase: debug
+   com.cloud.test..app: debug
   
 
 ```
 5. 引入其他配置文件的属性
 ```
 properties:
-  clientName: fxRuralOpcMerchant
+  clientName: test
   clientKey: B7C8BA415C580E9A3D84F835AD27FE94
-  uploadTempDir: /data/postmall/tomcat/temp
-  uploadFileToDFSUrl: //static.beta.ulecdn.com
-  uploadFileUrl: http://upload.beta.ule.com/upload
-  globalStaticServer1: //i0.beta.ulecdn.com
-  globalStaticServer2: //i1.beta.ulecdn.com
-  globalStaticServer3: //i2.beta.ulecdn.com
-  searchDistrIpPort: cloudSearch.beta.uledns.com:9020
-  itemAppkey: 7b8351500f54498f8f43bebd06d04eaa
-  merchantWarehouse: http://soa.beta.uledns.com/wmsSearch/api/warehouse
-  itemsStorage: http://wms.beta.ule.com/wmsApi3/inner/api/pur/inventory
-  warehouseInfo: http://wms.beta.ule.com/wmsApi3/inner/api/pur/warehouse/contact
-  cancelPurchaseOrder: http://wms.beta.ule.com/wmsApi3/inner/api/pur/stockIn/cancel
-  cancelReturnOrder: http://wms.beta.ule.com/wmsApi3/inner/api/pur/so/cancel
-  uleSelfSupport: http://cs.beta.ule.com/fxCsAdmin/api/fxMerchant/getUleOwnMerchant.do
-  betaTestMerchant: 800100339-平台测试999
+  uploadTempDir: /data/**/tomcat/temp
   
 header:
   appkey: testkey
@@ -172,7 +158,7 @@ header:
 ```
 6. 属性文件将配置的属性值映射到对应的属性上
 ```
-    package com.ule.wholesale.fxpurchase.web.conf;
+    package com.cloud.test..app.web.conf;
 
     import org.springframework.beans.factory.annotation.Value;
     import org.springframework.boot.context.properties.ConfigurationProperties;
@@ -207,7 +193,7 @@ header:
 
 7. Durid数据源配置
 ```
-package com.ule.wholesale.fxpurchase.server.conf;
+package com.cloud.test..app.server.conf;
 
 import java.sql.SQLException;
 
@@ -280,7 +266,7 @@ public class DataBaseConfiguration implements EnvironmentAware {
 ```
 8.  Mybatis配置
 ```
-package com.ule.wholesale.fxpurchase.server.conf;
+package com.cloud.test..app.server.conf;
 
 import javax.annotation.Resource;
 //import javax.persistence.EntityManager;
@@ -307,7 +293,7 @@ import org.springframework.transaction.annotation.TransactionManagementConfigure
 
 @Configuration  
 @EnableTransactionManagement
-@MapperScan(basePackages={"com.ule.wholesale.fxpurchase.server.mapper"})
+@MapperScan(basePackages={"com.cloud.test..app.server.mapper"})
 public class MybatisConfiguration implements EnvironmentAware,TransactionManagementConfigurer {
 
 	private static Logger logger = LoggerFactory.getLogger(MybatisConfiguration.class);  
@@ -475,16 +461,16 @@ endpoints:
 # 创建server工程
 ## server工程里面的RestConstroller是下面要讲的feignclient的实现
 > server 工程定义如下包名
->> com.ule.wholesale.server.conf #配置数据源，mybatis，属性文件的映射，已在springboot中描述过
->> com.ule.wholesale.server.dto # vo对象的扩展
->> com.ule.wholesale.server.filter #验证接口调用者是否合法
->> com.ule.wholesale.server.init #服务启动时需要初始的数据或者监听，InitializingBean
->> com.ule.wholesale.server.mapper #mybatis 的mapper 接口
->> com.ule.wholesale.server.msghandler #kafka消息处理
->> com.ule.wholesale.server.restcontroller #rest接口实现
->> com.ule.wholesale.server.schdule #定时任务执行
->> com.ule.wholesale.server.service #业务逻辑处理
->> com.ule.wholesale.server.vo #实体对象
+>> com.cloud.test.server.conf #配置数据源，mybatis，属性文件的映射，已在springboot中描述过
+>> com.cloud.test.server.dto # vo对象的扩展
+>> com.cloud.test.server.filter #验证接口调用者是否合法
+>> com.cloud.test.server.init #服务启动时需要初始的数据或者监听，InitializingBean
+>> com.cloud.test.server.mapper #mybatis 的mapper 接口
+>> com.cloud.test.server.msghandler #kafka消息处理
+>> com.cloud.test.server.restcontroller #rest接口实现
+>> com.cloud.test.server.schdule #定时任务执行
+>> com.cloud.test.server.service #业务逻辑处理
+>> com.cloud.test.server.vo #实体对象
 
 > 1.  server 的配置文件中需要配置consul的服务发现，具体配置和依赖的jar已在consul中描述
 > 2. conf 包中包括数据源配置、mybatis配置和属性文件映射 DataBaseConfiguration，MybatisConfiguration，ServerPropertiesConfiguration
@@ -502,7 +488,7 @@ endpoints:
 			<version>${springfox_version}</version>
 		</dependency>
 
-package com.ule.wholesale.fxpurchase.server.conf;
+package com.cloud.test..app.server.conf;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -524,7 +510,7 @@ public class Swagger2 {
         return new Docket(DocumentationType.SWAGGER_2)
                 .apiInfo(apiInfo())
                 .select()
-                .apis(RequestHandlerSelectors.basePackage("com.ule.wholesale.fxpurchase.server"))
+                .apis(RequestHandlerSelectors.basePackage("com.cloud.test..app.server"))
                 .paths(PathSelectors.any())
                 .build();
     }
@@ -545,7 +531,7 @@ public class Swagger2 {
 > 5. init包初始化启动时需要启动的监听（如kafka消费者监听服务），需要初始化的数据，或者需要在bean被创建之前需要做的操作
 >> 5.1 本例初始化了consul服务发现的实例ID，有原来的随机值改为服务的IP和端口
 ```
-package com.ule.wholesale.fxpurchase.server.init;
+package com.cloud.test..app.server.init;
 
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
@@ -634,13 +620,13 @@ FeignClient注解申明创建一个rest client Bean，可以直接通过Autowire
         </dependency>
 ```
 ## FeignClient的项目结构
-`com.ule.wholesale.fxpurchase.api.client`
-`com.ule.wholesale.fxpurchase.api.conf`
-`com.ule.wholesale.fxpurchase.api.constants`
-`com.ule.wholesale.fxpurchase.api.dto`
+`com.cloud.test..app.api.client`
+`com.cloud.test..app.api.conf`
+`com.cloud.test..app.api.constants`
+`com.cloud.test..app.api.dto`
 ## FeignClient的serviceClient的实现代码示例
 ```
-package com.ule.wholesale.fxpurchase.api.client;
+package com.cloud.test..app.api.client;
 
 import java.util.Map;
 import org.springframework.cloud.netflix.feign.FeignClient;
@@ -649,7 +635,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.RequestParam;
-import com.ule.wholesale.fxpurchase.common.util.ResultDTO;
+import com.cloud.test..app.common.util.ResultDTO;
 /**
 *ClientConstants.SERVICE_NAME 为server项目中指定的discovery下面的serviceName,一般保持和spring.application.name一致
 *ClientConstants.SERVER_PATH contextPath
@@ -662,12 +648,12 @@ public interface OrderClientService {
 	@RequestMapping("/api/order/findOrderList")
 	public ResultDTO<Map<String,Object>> findOrderList(@RequestBody Map<String,Object> params);
 	@RequestMapping(value="/api/order/findPurchaseItemList",method=RequestMethod.POST)
-	public ResultDTO<PageInfo<FXPurchaseOrderGoodsDto>> findPurchaseItemList(@RequestBody Map<String,Object> params,@RequestParam("pageNum")Integer pageNum,@RequestParam("pageSize")Integer pageSize);
+	public ResultDTO<PageInfo<.appOrderGoodsDto>> findPurchaseItemList(@RequestBody Map<String,Object> params,@RequestParam("pageNum")Integer pageNum,@RequestParam("pageSize")Integer pageSize);
 }
 ```
 ## conf下配置了一个拦截器，用来传递head中的验证信息或者token信息
 ```
-package com.ule.wholesale.fxpurchase.api.conf;
+package com.cloud.test..app.api.conf;
 
 import java.util.Enumeration;
 
@@ -678,7 +664,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
-import com.ule.wholesale.fxpurchase.api.constants.ClientConstants;
+import com.cloud.test..app.api.constants.ClientConstants;
 
 import feign.RequestInterceptor;
 import feign.RequestTemplate;
@@ -718,9 +704,9 @@ public class FeignClientsConfiguration {
 ```
 @SpringBootApplication
 @EnableDiscoveryClient
-@EnableFeignClients("com.ule.wholesale.fxpurchase.api.*")
+@EnableFeignClients("com.cloud.test..app.api.*")
 @PropertySource("classpath:dbaccount.yml")
-@ComponentScan({"com.ule.wholesale.fxpurchase"})
+@ComponentScan({"com.cloud.test..app"})
 public class FxServerApplication extends SpringBootServletInitializer{
 	
 	protected SpringApplicationBuilder configure(SpringApplicationBuilder builder) {
