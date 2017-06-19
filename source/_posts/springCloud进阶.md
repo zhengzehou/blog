@@ -102,6 +102,7 @@ public class DataBaseMysqlConfiguration implements EnvironmentAware {
 	
 }
 ```
+5. 配置文件值映射到类中方法，一是通过set方法注入，二是通过实现EnvironmentAware进行处理，方式二参照上面数据源配置类，方式一参照 `JDBC2MysqlConfiguration`类。对于常量类的配置，可以通过@Value来赋值，@Value不能直接为静态变量赋值，所以要通过set方法实现，把@Value写到对应的set方法上，set方法不能是静态的
 
 ## SQLFilter、XssShellFilter用来防止sql注入和前端的css、js等的注入
 > 1. SqlFilter 验证如下：
@@ -265,6 +266,18 @@ public class ConsulConfig {
 ```
 
 ## 公共帮助类
+目前已收集的工具类如下：
+
+| 类名 |  描述 |
+| :---------------- | :---------- |
+| BeanUtils | 替代了common包中的BeanUtils，为了解决字符串日期转对象时的格式问题|
+| DataUtil | 转换HttpServletRequest对象中的指定key，根据需要调用对应方法获取需要类型的数据，方法有parseString,parseLong,parseDouble,parseInt；parseInt(Object str)，boolean isNumber(String str)，汉字转换成拼音String toPinyin(String input)，String ToDBC(String input)|
+| HttpClientUtil | sendPost|
+| MD5Tools | 获取系统默认分隔符String getOSFileSeparator()，获取加密后的字符串 String getMD5Password(String password) ，获取指定日期的年月日int getYear(final Date date)，int getMonth(final Date date)，int getDay(final Date date)，int getHour(final Date date)，int getMinute(final Date date)，int getSecond(final Date date)|
+| ResultDTO<T> | 所有rest接口统一返回对象 |
+| LocalDeveloyEnv | 判断是否为dev开发的一个常量，可以在本地服务启动时添加系统变量 `dev=true` ，有些逻辑或验证在开发时不需要使用，可以使用类中的isDev进行判断，目的是：提交代码无需修改，所有项目建议用spring-boot:run 命令进行启动，在命令下方设置dev变量 |
+
+
 > 1. 通过jackson的配置`spring.jacksondate-format: yyyy-MM-dd HH:mm:ss`，日期转成json的输入输出都是`yyyy-MM-dd HH:mm:ss`格式，所以在通过BeanUtils进行bean的复制时，时间需要进行处理,common中提供了自己的BeanUtil工具类进行了处理，如果用到了对象复制功能请使用改类
 > 2. DataUtil,HttpClientUtil,MD5Tools目前每个项目都有这个类，以后请用公共的工具类，如果不能满足请提出了，如确实需要，添加相应功能
 > 3. ResultDTO，定义为所有rest接口统一返回改对象，如果无需数据的返回直接定义 success方法，如需数据调用 success(T data)方法，如果失败请调用 fail()方法；还可以直接自己创建对象进行调用，该类中添加了remark属性留作备用
@@ -297,7 +310,18 @@ public final class ResultDTO<T> implements Serializable{
 	}
     ...
 ```
-
+## CommonApplication
+在common中提供了一个 CommonApplication，其他使用common的项目需要继承，CommonApplication的存在做了一下几个事情
+> 1. 创建公共常量的bean初始化常量值
+> 2. 添加sleuth的日志写入配置
+```
+@Bean
+    public AlwaysSampler defaultSampler(){
+        return new AlwaysSampler();
+    }
+```
+> 3. 便于后期对所有服务的公共部分进行扩展，比如添加公共的过滤器
+> 4. 减少项目中Application的注解，`@SpringBootApplication` `@EnableDiscoveryClient`
 ## 日志文件配置
 日志文件已经在common中有配置，输入路径为/data/logs/tomcat/wholesale/${项目的上下文名称}/项目的上下文名称.log,项目的上下文名称日志文件会自动从配置文件中获取server.context-path的值，如果不需要设置context-path的请复制配置文件自行设置
 
@@ -489,3 +513,78 @@ public class Swagger2 {
 		return filterRegistrationBean;
 	}
 ```
+## 包命名
+包名为com.ule.wholesale.模块名,下面包括 config 、controller、 init 、service 、mapper 、vo ,根据需要添加util（仅在common中没有时）
+## 配置修改
+根据自己项目修改bootstrap.yml中的信息
+![修改项](/images/bootstrap-1.jpg)
+
+# rest接口api
+1. rest接口本文是通过FeignClient进行调用，需要配置FeignClient中的value和path属性`@FeignClient(value=ClientConstants.SERVICE_NAME,path=ClientConstants.SERVER_PATH)`
+```
+	public final static String SERVER_PATH = "fxPurchaseServer";//项目的上下文
+	public final static String SERVICE_NAME= "fxpurchase-service-provider";//consul服务注册的服务名，一般和spring.application.name相同
+```
+2. head验证信息
+如果需要通过head进行信息传递，可以把要传递的信息存放于`com.ule.wholesale.fxpurchase.api.constants.ClientConstants.ClientConstants.headMap`这个map中
+```
+public class ClientsHeadersSettingInterceptor {
+
+	@Autowired
+	HttpServletRequest request;
+	@Bean
+	public RequestInterceptor headerInterceptor() {
+		return new RequestInterceptor() {
+			@Override
+			public void apply(RequestTemplate requestTemplate) {	
+                for(String key : ClientConstants.headMap.keySet()){
+                    if(ClientConstants.headMap.get(key) != null && StringUtils.isNotBlank(ClientConstants.headMap.get(key).toString()))
+                        requestTemplate.header(key, ClientConstants.headMap.get(key).toString());
+                }
+			}
+		};
+	}
+}
+```
+3. dto包
+存放所有需要暴露给调用者的对象
+# 接口调用
+## FeignClient配置
+> 1. 接口调用分为http调用和FeignClient调用，本文要介绍的是后者.
+> 2. feignclient 中集成了hystrix和ribbon，ribon实现了负载客户端的负载均衡，hystrix实现了服务的监控（结合看板），服务断路后重发等功能
+> 3. 服务重发默认5次，比如请求超时也会重新请求，这对于新增之类的操作影响比较大，所有项目中禁止重发请求操作，配置如下：
+> 4. feign client默认的connectTimeout为10s，readTimeout为60，可以通过下面代码进行修改
+```
+@Value("${feignConnectTimeout:10000}")
+private Integer connectTimeoutMillis;
+@Value("${feignReadTimeout:60000}")
+private Integer readTimeoutMillis;
+
+// feign client默认的connectTimeout为10s，readTimeout为60.单纯设置timeout，可能没法立马见效，因为默认的retry为5次    
+@Bean
+Request.Options feignOptions() {
+	return new Request.Options(/**connectTimeoutMillis**/connectTimeoutMillis, /** readTimeoutMillis **/readTimeoutMillis);
+}
+@Bean
+Retryer feignRetryer() {
+	return Retryer.NEVER_RETRY;
+}
+```
+## FeignClient使用
+ 接口的使用，在controller直接使用对应的client,和普通service使用方式相同
+```
+@Autowired
+private BankInfoClientService bankInfoClientService;
+```
+## Consul配置
+接口调用者需要配置Consul服务，但是不需要被发现,虽然common中进行了consul的配置，此处配置会覆盖common中的配置，或者说register设置为false，common对应consul配置就无效了
+```
+srping:
+    cloud:
+      consul:
+        discovery:
+          register: false
+```
+## 其他
+ 修改server.context-path 和spring.application.name
+ 在service层编写自己需要的service，比如调用其他http服务的处理等
